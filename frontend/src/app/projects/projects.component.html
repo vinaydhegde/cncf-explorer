@@ -1,0 +1,293 @@
+<!-- Filters Section -->
+<div class="filters">
+  <div class="filter-group">
+    <label for="maturity">Maturity Level</label>
+    <select id="maturity" [(ngModel)]="selectedMaturity">
+      <option value="">All Maturity Levels</option>
+      <option *ngFor="let level of maturityLevels" [value]="level">{{ level }}</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="category">Category</label>
+    <select id="category" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+      <option value="">All Categories</option>
+      <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="subcategory">Subcategory</label>
+    <select id="subcategory" [(ngModel)]="selectedSubcategory" [disabled]="!selectedCategory">
+      <option value="">All Subcategories</option>
+      <option *ngFor="let subcat of subcategories" [value]="subcat">{{ subcat }}</option>
+    </select>
+  </div>
+
+  <div class="filter-group" style="align-self: flex-end;">
+    <button class="btn btn-primary" (click)="applyFilters()">Apply Filters</button>
+  </div>
+
+  <div class="filter-group" style="align-self: flex-end;">
+    <button class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+  </div>
+
+  <div class="filter-group" style="align-self: flex-end;">
+    <button class="btn btn-success" (click)="syncLandscape()" [disabled]="loading">
+      {{ loading ? 'Syncing...' : 'Sync CNCF Landscape' }}
+    </button>
+  </div>
+
+  <div class="filter-group" style="align-self: flex-end;">
+    <button class="btn btn-primary" (click)="openEnterpriseModal()">Add Enterprise Solution</button>
+  </div>
+
+  <div class="filter-group" style="align-self: flex-end;">
+    <button class="btn btn-secondary" (click)="openAllSolutionsModal()" 
+            [disabled]="enterpriseSolutions.length === 0">
+      View All Solutions ({{ enterpriseSolutions.length }})
+    </button>
+  </div>
+</div>
+
+<!-- Messages -->
+<div *ngIf="error" class="error">{{ error }}</div>
+<div *ngIf="success" class="success">{{ success }}</div>
+
+<!-- Projects List -->
+<div class="projects-container">
+  <div class="projects-header">
+    <h2>CNCF Projects</h2>
+    <span class="projects-count">{{ filteredProjects.length }} project(s)</span>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading projects...</div>
+
+  <div *ngIf="!loading && filteredProjects.length === 0" class="empty-state">
+    <p>No projects found. Try adjusting your filters or sync the CNCF landscape.</p>
+  </div>
+
+  <div class="projects-list" *ngIf="!loading && filteredProjects.length > 0">
+    <div class="project-card" *ngFor="let project of filteredProjects">
+      <div class="project-header">
+        <div>
+          <div class="project-name">{{ project.name }}</div>
+          <div class="project-badges">
+            <span class="badge" [ngClass]="getMaturityBadgeClass(project.maturityLevel)">
+              {{ project.maturityLevel }}
+            </span>
+            <span class="badge badge-category">{{ project.category }}</span>
+            <span class="badge badge-category" *ngIf="project.subcategory">{{ project.subcategory }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-details" *ngIf="project.description || project.githubStars || project.lastUpdated">
+        <div class="detail-item" *ngIf="project.githubStars">
+          <span class="star-icon">⭐</span>
+          <strong>GitHub Stars:</strong> {{ project.githubStars | number }}
+        </div>
+        <div class="detail-item" *ngIf="project.lastUpdated">
+          <strong>Last Updated:</strong> {{ formatDate(project.lastUpdated) }}
+        </div>
+        <div class="detail-item" *ngIf="project.homepageUrl">
+          <strong>Homepage:</strong> 
+          <a [href]="project.homepageUrl" target="_blank" rel="noopener noreferrer">
+            {{ project.homepageUrl }}
+          </a>
+        </div>
+      </div>
+
+      <div *ngIf="project.description" style="margin-top: 1rem; color: #666;">
+        {{ project.description }}
+      </div>
+
+      <!-- Enterprise Solutions for this project -->
+      <div *ngIf="getEnterpriseSolutionsForProject(project).length > 0" class="enterprise-solutions-inline" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee;">
+        <div style="font-weight: 600; margin-bottom: 0.75rem; color: #333;">Enterprise Solutions:</div>
+        <div class="enterprise-solution-item" *ngFor="let solution of getEnterpriseSolutionsForProject(project)" style="background: #f8f9fa; padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #667eea;">
+          <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">{{ solution.name }}</div>
+          <div style="font-size: 0.9rem; color: #666;" *ngIf="solution.cncfProjectUsed">
+            <strong>Uses:</strong> {{ solution.cncfProjectUsed }}
+          </div>
+          <div style="font-size: 0.85rem; color: #666; margin-top: 0.25rem;" *ngIf="solution.description">
+            {{ solution.description }}
+          </div>
+          <div style="font-size: 0.85rem; margin-top: 0.25rem;" *ngIf="solution.websiteUrl">
+            <a [href]="solution.websiteUrl" target="_blank" rel="noopener noreferrer" style="color: #667eea;">
+              Visit Website →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- All Enterprise Solutions Modal -->
+<div class="modal" [class.show]="showAllSolutionsModal" (click)="closeAllSolutionsModal()" 
+     [style.display]="showAllSolutionsModal ? 'flex' : 'none'">
+  <div class="modal-content" style="max-width: 800px; width: 90%;" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>All Enterprise Solutions ({{ enterpriseSolutions.length }})</h3>
+      <button class="close" (click)="closeAllSolutionsModal()">&times;</button>
+    </div>
+
+    <div style="max-height: 70vh; overflow-y: auto; padding: 1rem 0;">
+      <div *ngIf="enterpriseSolutions.length === 0" class="empty-state" style="padding: 2rem; text-align: center;">
+        <p style="color: #666; font-size: 1.1rem;">No enterprise solutions added yet.</p>
+        <p style="color: #999; margin-top: 0.5rem;">Click "Add Enterprise Solution" to get started.</p>
+      </div>
+
+      <div class="enterprise-list" *ngIf="enterpriseSolutions.length > 0">
+        <div class="enterprise-item" *ngFor="let solution of enterpriseSolutions" style="margin-bottom: 1rem;">
+          <div class="enterprise-item-header">
+            <div>
+              <div class="enterprise-name">{{ solution.name }}</div>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                <span class="badge badge-category">{{ solution.category }}</span>
+                <span *ngFor="let subcat of solution.subcategories" class="badge badge-category" 
+                      style="background: #d1ecf1; color: #0c5460;">
+                  {{ subcat }}
+                </span>
+                <span *ngIf="!solution.subcategories || solution.subcategories.length === 0" 
+                      class="badge badge-category" style="background: #fff3cd; color: #856404;">
+                  All Subcategories
+                </span>
+              </div>
+            </div>
+            <div class="enterprise-actions">
+              <button class="btn btn-secondary btn-small" (click)="editEnterpriseSolution(solution); closeAllSolutionsModal()">
+                Edit
+              </button>
+              <button class="btn btn-danger btn-small" (click)="deleteEnterpriseSolution(solution._id!)">
+                Delete
+              </button>
+            </div>
+          </div>
+          <div class="enterprise-details">
+            <p *ngIf="solution.cncfProjectUsed">
+              <strong>CNCF Project Used:</strong> {{ solution.cncfProjectUsed }}
+            </p>
+            <p *ngIf="solution.description">
+              <strong>Description:</strong> {{ solution.description }}
+            </p>
+            <p *ngIf="solution.websiteUrl">
+              <strong>Website:</strong> 
+              <a [href]="solution.websiteUrl" target="_blank" rel="noopener noreferrer">
+                {{ solution.websiteUrl }}
+              </a>
+            </p>
+            <p *ngIf="solution.additionalInfo">
+              <strong>Additional Info:</strong> {{ solution.additionalInfo }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="border-top: 1px solid #eee; padding-top: 1rem; margin-top: 1rem;">
+      <button type="button" class="btn btn-primary" (click)="openEnterpriseModal(); closeAllSolutionsModal()">
+        Add New Solution
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="closeAllSolutionsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Enterprise Solution Modal -->
+<div class="modal" [class.show]="showEnterpriseModal" (click)="closeEnterpriseModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingSolution ? 'Edit' : 'Add' }} Enterprise Solution</h3>
+      <button class="close" (click)="closeEnterpriseModal()">&times;</button>
+    </div>
+
+    <form (ngSubmit)="saveEnterpriseSolution()">
+      <div class="form-group">
+        <label for="ent-category">Category *</label>
+        <select id="ent-category" [(ngModel)]="enterpriseForm.category" name="category" 
+                (change)="onEnterpriseCategoryChange()" required>
+          <option value="">Select Category</option>
+          <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="enterpriseForm.category">
+        <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">Subcategories (Multi-select)</label>
+        <div class="subcategory-select-container" style="border: 1px solid #ddd; border-radius: 4px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div *ngIf="enterpriseModalSubcategories.length === 0" 
+               style="color: #666; font-style: italic; padding: 1rem; text-align: center;">
+            No subcategories available for this category. Solution will apply to all projects in this category.
+          </div>
+          <div *ngIf="enterpriseModalSubcategories.length > 0">
+            <div style="padding: 0.75rem; border-bottom: 1px solid #eee; background: #f8f9fa; border-radius: 4px 4px 0 0;">
+              <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; margin: 0;">
+                <input type="checkbox" 
+                       [checked]="areAllSubcategoriesSelected()"
+                       (change)="selectAllSubcategories()"
+                       style="margin-right: 0.75rem; width: 18px; height: 18px; cursor: pointer;">
+                <span>Select All ({{ enterpriseForm.subcategories?.length || 0 }}/{{ enterpriseModalSubcategories.length }} selected)</span>
+              </label>
+            </div>
+            <div class="subcategory-checkboxes" 
+                 style="max-height: 250px; overflow-y: auto; padding: 0.5rem;">
+              <label *ngFor="let subcat of enterpriseModalSubcategories" 
+                     style="display: flex; align-items: center; padding: 0.75rem; cursor: pointer; border-radius: 4px; margin-bottom: 0.25rem; transition: background 0.2s;"
+                     [style.background]="isSubcategorySelected(subcat) ? '#e7f3ff' : 'transparent'"
+                     (click)="toggleSubcategory(subcat)"
+                     (mouseenter)="onSubcategoryHover($event, subcat, true)"
+                     (mouseleave)="onSubcategoryHover($event, subcat, false)">
+                <input type="checkbox" 
+                       [checked]="isSubcategorySelected(subcat)"
+                       (change)="toggleSubcategory(subcat)"
+                       (click)="$event.stopPropagation()"
+                       style="margin-right: 0.75rem; width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;">
+                <span style="flex: 1;">{{ subcat }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <small style="color: #666; display: block; margin-top: 0.5rem;">
+          Select specific subcategories, or leave empty to apply to all subcategories in this category.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="ent-name">Name *</label>
+        <input type="text" id="ent-name" [(ngModel)]="enterpriseForm.name" name="name" required>
+      </div>
+
+      <div class="form-group">
+        <label for="ent-cncf-project">CNCF Project Used</label>
+        <input type="text" id="ent-cncf-project" [(ngModel)]="enterpriseForm.cncfProjectUsed" name="cncfProjectUsed" 
+               placeholder="e.g., OpenTelemetry">
+      </div>
+
+      <div class="form-group">
+        <label for="ent-description">Description</label>
+        <textarea id="ent-description" [(ngModel)]="enterpriseForm.description" name="description" 
+                  placeholder="Brief description of the enterprise solution"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="ent-website">Website URL</label>
+        <input type="url" id="ent-website" [(ngModel)]="enterpriseForm.websiteUrl" name="websiteUrl" 
+               placeholder="https://example.com">
+      </div>
+
+      <div class="form-group">
+        <label for="ent-info">Additional Information</label>
+        <textarea id="ent-info" [(ngModel)]="enterpriseForm.additionalInfo" name="additionalInfo" 
+                  placeholder="Any additional information about the solution"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeEnterpriseModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+

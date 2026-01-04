@@ -1,0 +1,31 @@
+# Optional: Ingress configuration for all services
+# Uncomment and customize as needed
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cncf-explorer-ingress
+  namespace: cncf-explorer
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cncf-explorer.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-cncf-explorer-frontend
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-cncf-explorer-backend
+                port:
+                  number: 3000
+

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: cncf-explorer-mongodb
+description: CNCF Explorer MongoDB Database (StatefulSet)
+type: application
+version: 1.0.0
+appVersion: "7.0"
+
