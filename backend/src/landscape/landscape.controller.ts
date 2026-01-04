@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param } from '@nestjs/common';
+import { Controller, Post, Get } from '@nestjs/common';
 import { LandscapeService } from './landscape.service';
 
 @Controller('api/landscape')
