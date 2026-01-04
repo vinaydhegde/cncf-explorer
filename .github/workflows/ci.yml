@@ -98,7 +98,8 @@ jobs:
         run: npm run lint || echo "Lint not configured"
 
       - name: Unit Tests
-        run: npm test
+        # run: npm test cncf-explorer
+        run: npx ng test cncf-explorer
 
       - name: Build
         run: npm run build -- --configuration production
