@@ -98,7 +98,7 @@ jobs:
         run: npm run lint || echo "Lint not configured"
 
       - name: Unit Tests
-        run: npm test -- --ci
+        run: npm test
 
       - name: Build
         run: npm run build -- --configuration production
